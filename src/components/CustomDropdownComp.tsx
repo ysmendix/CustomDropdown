@@ -5,7 +5,7 @@ import { Styles } from 'react-select/src/styles';
 import { OptionTypeBase } from "react-select/src/types";
 
 import { ListValue, EditableValue, ActionValue, ListAttributeValue } from "mendix";
-import Label from './Label';
+import Label, { getStyles as getLabelStyles } from './Label';
 
 export interface Option {
     label: JSX.Element;
@@ -13,7 +13,7 @@ export interface Option {
     secondLabel: string;
     url: string;
 }
-
+// REFACTOR: check if is loading property is available for mendix components
 export interface CustomDropdownComponentProps {
     defaultValue: ListValue;
     firstLabel: ListAttributeValue<string>;
@@ -39,7 +39,6 @@ export interface CustomDropdownComponentProps {
 }
 
 export default function CustomDropdownComp(props: CustomDropdownComponentProps): ReactElement {
-    const [isLoading, setIsLoading] = useState(false);
     const [options, setOptions] = useState<Option[]>([]);
     const [value, setValue] = useState<Option>();
 
@@ -58,17 +57,16 @@ export default function CustomDropdownComp(props: CustomDropdownComponentProps):
     });
 
     useEffect(() => {
-        try {
-            if (props.defaultValue.status === 'available') {
-                const defaultValue = props.defaultValue.items.map(obj => {
-                    let { firstLabel, secondLabel, id, imgUrl }: { firstLabel: string; secondLabel: string; id: string; imgUrl: string; } = getLabelValues(obj);
-                    return createOption(firstLabel, secondLabel, id, imgUrl);
-                })
+        if (props.defaultValue.status === 'available') {
+            const defaultValue = props.defaultValue.items.map(obj => {
+                let { firstLabel, secondLabel, id, imgUrl }: { firstLabel: string; secondLabel: string; id: string; imgUrl: string; } = getLabelValues(obj);
+                return createOption(firstLabel, secondLabel, id, imgUrl);
+            })
+            if (defaultValue[0] === undefined) {
+                setValue(null)
+            } else {
                 setValue(defaultValue[0]);
             }
-        }
-        catch {
-            setValue(null);
         }
     }, [props.defaultValue]);
 
@@ -100,7 +98,7 @@ export default function CustomDropdownComp(props: CustomDropdownComponentProps):
     };
 
     const handleFocus = () => {
-        if (props.onFocus != undefined && props.onFocus.canExecute) {
+        if (props.onFocus && props.onFocus.canExecute) {
             props.onFocus.execute();
         }
     }
@@ -134,11 +132,31 @@ export default function CustomDropdownComp(props: CustomDropdownComponentProps):
     }
     if (props.enableCreate) {
         return (
-            <CreatableSelect
+            <div>
+                <style type="text/css" scoped>{getLabelStyles(props.classNamePrefix)}</style>
+                <CreatableSelect
+                    options={options}
+                    value={value}
+                    onChange={handleChange}
+                    isClearable={props.enableClear}
+                    isSearchable={props.enableSearch}
+                    styles={styles}
+                    placeholder={props.placeholder}
+                    className={props.className!}
+                    classNamePrefix={props.classNamePrefix}
+                    maxMenuHeight={props.menuHeight}
+                    onFocus={handleFocus}
+                />
+            </div>
+        )
+    }
+    return (
+        <div>
+            <style type="text/css" scoped>{getLabelStyles(props.classNamePrefix)}</style>
+            <Select
                 options={options}
                 value={value}
                 onChange={handleChange}
-                isLoading={isLoading}
                 isClearable={props.enableClear}
                 isSearchable={props.enableSearch}
                 styles={styles}
@@ -148,86 +166,54 @@ export default function CustomDropdownComp(props: CustomDropdownComponentProps):
                 maxMenuHeight={props.menuHeight}
                 onFocus={handleFocus}
             />
-        )
-    }
-    return (
-        <Select
-            options={options}
-            value={value}
-            onChange={handleChange}
-            isLoading={isLoading}
-            isClearable={props.enableClear}
-            isSearchable={props.enableSearch}
-            styles={styles}
-            placeholder={props.placeholder}
-            className={props.className!}
-            classNamePrefix={props.classNamePrefix}
-            maxMenuHeight={props.menuHeight}
-            onFocus={handleFocus}
-        />
+        </div>
     )
 
     function clearAction(actionMeta: any) {
-        setIsLoading(true);
-        try {
-            if (props.contextObjLabel.status === 'available') {
-                props.contextObjLabel.setValue(actionMeta.removedValues[0].value);
-            }
-            if (props.contextObjId.status === 'available') {
-                props.contextObjId.setValue('');
-            }
-            if (props.clearValue.canExecute) {
-                props.clearValue.execute();
-            }
-            setValue(null);
-        } catch (err) {
-            console.error('Failed to clear a Tag: ' + err);
+
+        if (props.contextObjLabel.status === 'available') {
+            props.contextObjLabel.setValue(actionMeta.removedValues[0].value);
         }
-        setIsLoading(false);
+        if (props.contextObjId.status === 'available') {
+            props.contextObjId.setValue('');
+        }
+        if (props.clearValue.canExecute) {
+            props.clearValue.execute();
+        }
+        setValue(null);
     }
 
+
     function createAction(inputValue: any) {
-        setIsLoading(true);
-        try {
-            if (props.contextObjLabel.status === 'available') {
-                props.contextObjLabel.setValue(inputValue.value);
-            }
-            if (props.contextObjId.status === 'available') {
-                props.contextObjId.setValue('');
-            }
-            if (props.createValue.canExecute) {
-                props.createValue.execute();
-            }
-        } catch (err) {
-            console.error('Failed to create a Tag: ' + err);
+        if (props.contextObjLabel.status === 'available') {
+            props.contextObjLabel.setValue(inputValue.value);
         }
-        setIsLoading(false);
+        if (props.contextObjId.status === 'available') {
+            props.contextObjId.setValue('');
+        }
+        if (props.createValue.canExecute) {
+            props.createValue.execute();
+        }
     }
 
     function selectAction(inputValue: any) {
-        setIsLoading(true);
-        try {
-            if (props.contextObjLabel.status === 'available') {
-                props.contextObjLabel.setValue(inputValue.value);
-            }
-            if (props.contextObjId.status === 'available') {
-                props.contextObjId.setValue(inputValue.id);
-            }
-            if (props.selectOption.canExecute) {
-                props.selectOption.execute();
-            }
-            setValue(createOption(inputValue.value, inputValue.secondLabel, inputValue.id, inputValue.url));
-        } catch (err) {
-            console.error('Failed to select a Tag: ' + err);
+        if (props.contextObjLabel.status === 'available') {
+            props.contextObjLabel.setValue(inputValue.value);
         }
-        setIsLoading(false);
+        if (props.contextObjId.status === 'available') {
+            props.contextObjId.setValue(inputValue.id);
+        }
+        if (props.selectOption.canExecute) {
+            props.selectOption.execute();
+        }
+        setValue(createOption(inputValue.value, inputValue.secondLabel, inputValue.id, inputValue.url));
     }
 
     function getLabelValues(obj) {
-        let firstLabel: string = props.firstLabel != undefined ? props.firstLabel(obj).displayValue : '';
-        let secondLabel: string = props.secondLabel != undefined ? props.secondLabel(obj).displayValue : '';
-        let id: string = props.objId != undefined ? props.objId(obj).displayValue : '';
-        let imgUrl: string = props.imgUrl != undefined ? props.imgUrl(obj).displayValue : '';
+        let firstLabel: string = props.firstLabel && props.firstLabel(obj).displayValue;
+        let secondLabel: string = props.secondLabel && props.secondLabel(obj).displayValue;
+        let id: string = props.objId && props.objId(obj).displayValue;
+        let imgUrl: string = props.imgUrl && props.imgUrl(obj).displayValue;
         return { firstLabel, secondLabel, id, imgUrl };
     }
 }
